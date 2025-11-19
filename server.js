@@ -1,78 +1,56 @@
 import express from "express";
 import cors from "cors";
-import fs from "fs";
+import { readFile } from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
 app.use(cors());
-app.use(express.json());
 
-// --- Cargar productos desde products.json (ruta compatible con ESM) ---
-let products = [];
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-function loadProducts() {
+// Función para leer JSON de forma segura
+async function readJSON(relativePath) {
   try {
-    const rawData = fs.readFileSync(
-      new URL("./products.json", import.meta.url),
-      "utf-8"
-    );
-    products = JSON.parse(rawData);
-    console.log("Productos cargados:", products.length);
-  } catch (err) {
-    console.error("❌ Error al leer products.json:", err.message);
-    products = [];
+    const fullPath = path.join(__dirname, relativePath);
+    const data = await readFile(fullPath, "utf-8");
+    return JSON.parse(data);
+  } catch (error) {
+    console.error(`❌ Error leyendo ${relativePath}:`, error.message);
+    return []; // No rompe el servidor
   }
 }
 
-// Cargar al inicio
-loadProducts();
-
-// Opcional: endpoint para recargar productos sin redeploy (útil en desarrollo)
-app.post("/admin/reload-products", (req, res) => {
-  loadProducts();
-  res.json({ ok: true, length: products.length });
+// ENDPOINTS
+app.get("/api/backpacks", async (req, res) => {
+  const data = await readJSON("src/json/backpacks.json");
+  res.json(data);
 });
 
-// --- Rutas de la API ---
-
-// Ruta de estado
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", products: products.length });
+app.get("/api/sleeping-bags", async (req, res) => {
+  const data = await readJSON("src/json/sleeping-bags.json");
+  res.json(data);
 });
 
-// Obtener todos los productos o filtrar por categoría
-app.get("/api/products", (req, res) => {
-  const category = req.query.category;
-
-  if (category) {
-    const filtered = products.filter((p) => {
-      const cat = p.category || p.Category || "";
-      return String(cat).toLowerCase() === String(category).toLowerCase();
-    });
-    return res.json(filtered);
-  }
-
-  res.json(products);
+app.get("/api/tents", async (req, res) => {
+  const data = await readJSON("src/json/tents.json");
+  res.json(data);
 });
 
-// Obtener producto por ID (soporta 'id' o 'Id' en el JSON)
-app.get("/api/products/:id", (req, res) => {
-  const id = String(req.params.id);
+// Si quieres un endpoint combinado
+app.get("/api/products", async (req, res) => {
+  const backpacks = await readJSON("src/json/backpacks.json");
+  const sleepingBags = await readJSON("src/json/sleeping-bags.json");
+  const tents = await readJSON("src/json/tents.json");
 
-  const product = products.find((p) => {
-    const pid = p.id ?? p.Id ?? p.ID ?? p.productId ?? "";
-    return String(pid) === id;
-  });
-
-  if (!product) {
-    return res.status(404).json({ error: "Producto no encontrado" });
-  }
-
-  res.json(product);
+  res.json([...backpacks, ...sleepingBags, ...tents]);
 });
 
-// --- Puerto dinámico para Render ---
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, "0.0.0.0", () => {
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
 });
+git add .
+git commit -m "fix: json backend"
+git push
