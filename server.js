@@ -38,7 +38,7 @@ app.get("/api/tents", async (req, res) => {
   res.json(data);
 });
 
-// Si quieres un endpoint combinado
+// Endpoint combinado
 app.get("/api/products", async (req, res) => {
   const backpacks = await readJSON("src/json/backpacks.json");
   const sleepingBags = await readJSON("src/json/sleeping-bags.json");
@@ -48,6 +48,6 @@ app.get("/api/products", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
 });
